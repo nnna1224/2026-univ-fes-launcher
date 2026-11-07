@@ -1,6 +1,6 @@
 // 学祭ゲームランチャー本体。Astroで生成したサイト(dist)をそのまま表示し、
 // manifest に登録されたゲームをダウンロード・展開・起動する。
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron');
 const { spawn, execFile } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -12,7 +12,6 @@ const { pipeline } = require('node:stream/promises');
 
 const appRoot = path.join(__dirname, '..');
 const siteRoot = path.join(appRoot, 'dist');
-const config = JSON.parse(fs.readFileSync(path.join(appRoot, 'launcher.config.json'), 'utf8'));
 
 // ゲームやキャッシュを1フォルダにまとめ、このフォルダを消せば元に戻せるようにする。
 // 大きなゲームが移動プロファイルで同期されないよう Roaming ではなく Local に置き、
@@ -44,6 +43,43 @@ function startSiteServer() {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
 }
 
+// manifest のURLはexeに含めず、初回起動時に入力してもらう。
+// URLと manifest のキャッシュ（zipのURLを含む）は、safeStorage（WindowsではDPAPI）で
+// このPCのユーザーだけが復号できる形に暗号化して保存する。
+const manifestUrlPath = () => path.join(app.getPath('userData'), 'manifest-url.bin');
+const manifestCachePath = () => path.join(app.getPath('userData'), 'manifest.cache.bin');
+
+function readEncrypted(file) {
+  try {
+    return safeStorage.decryptString(fs.readFileSync(file));
+  } catch {
+    return undefined;
+  }
+}
+
+function writeEncrypted(file, text) {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('このPCでは暗号化して保存できません');
+  fs.writeFileSync(file, safeStorage.encryptString(text));
+}
+
+const getManifestUrl = () => readEncrypted(manifestUrlPath());
+
+/** URLから manifest を取得し、形式を検証する。 */
+async function downloadManifest(url) {
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`取得できません (HTTP ${res.status})`);
+  let manifest;
+  try {
+    manifest = JSON.parse(await res.text());
+  } catch {
+    throw new Error('manifest の形式ではありません（JSONではない、または共有設定が「リンクを知っている全員」になっていない）');
+  }
+  if (!manifest || typeof manifest.games !== 'object' || manifest.games === null) {
+    throw new Error('manifest の形式ではありません（"games" がありません）');
+  }
+  return manifest;
+}
+
 /** 一覧表示で同時に何件も問い合わせるため、短時間は取得結果を使い回す。 */
 let manifestRequest;
 let manifestFetchedAt = 0;
@@ -55,26 +91,23 @@ function loadManifest() {
   return manifestRequest;
 }
 
-/** 最新の manifest を取得する。オフライン時は前回取得分、それもなければ同梱版を使う。 */
+/** 最新の manifest を取得する。オフライン時は前回取得分を使う。 */
 async function fetchManifest() {
-  const cachePath = path.join(app.getPath('userData'), 'manifest.cache.json');
-  if (config.manifestUrl) {
+  const url = getManifestUrl();
+  if (url) {
     try {
-      const res = await fetch(config.manifestUrl, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const manifest = await res.json();
-      await fsp.writeFile(cachePath, JSON.stringify(manifest));
+      const manifest = await downloadManifest(url);
+      writeEncrypted(manifestCachePath(), JSON.stringify(manifest));
       return manifest;
     } catch (error) {
       console.warn(`manifest の取得に失敗しました: ${error.message}`);
     }
   }
-  for (const file of [cachePath, path.join(appRoot, 'manifest.json')]) {
-    try {
-      return JSON.parse(await fsp.readFile(file, 'utf8'));
-    } catch {}
+  try {
+    return JSON.parse(readEncrypted(manifestCachePath()));
+  } catch {
+    return { games: {} };
   }
-  return { games: {} };
 }
 
 /** manifest の1件を検証する。`type: "web"` は unityroom などブラウザで遊ぶゲーム。 */
@@ -204,6 +237,31 @@ function openWebGame(game) {
   win.loadURL(game.url);
 }
 
+/** 設定画面で入力されたURLを検証し、有効なゲームの件数を返す。 */
+async function checkManifestUrl(url) {
+  if (!/^https:\/\//.test(url ?? '')) throw new Error('https:// で始まるURLを入力してください');
+  const manifest = await downloadManifest(url);
+  return Object.values(manifest.games).filter(validGame).length;
+}
+
+ipcMain.handle('launcher:check-manifest', (_event, url) => checkManifestUrl(url));
+
+ipcMain.handle('launcher:save-manifest', async (event, url) => {
+  await checkManifestUrl(url);
+  writeEncrypted(manifestUrlPath(), url);
+  // 別の manifest の前回取得分を使わないよう、キャッシュも消す。
+  fs.rmSync(manifestCachePath(), { force: true });
+  manifestRequest = undefined;
+  await loadSite(BrowserWindow.fromWebContents(event.sender));
+});
+
+/** 設定済みならサイトに戻る。未設定なら false。 */
+ipcMain.handle('launcher:close-setup', async (event) => {
+  if (!getManifestUrl()) return false;
+  await loadSite(BrowserWindow.fromWebContents(event.sender));
+  return true;
+});
+
 ipcMain.handle('launcher:status', (_event, id) => gameStatus(id));
 
 ipcMain.handle('launcher:download', async (_event, id) => {
@@ -259,9 +317,13 @@ ipcMain.handle('launcher:play', async (_event, id) => {
   }
 });
 
+let origin;
+const loadSite = (win) => win.loadURL(`${origin}/`);
+const loadSetup = (win) => win.loadFile(path.join(__dirname, 'setup.html'));
+
 async function createWindow() {
   const port = await startSiteServer();
-  const origin = `http://127.0.0.1:${port}`;
+  origin = `http://127.0.0.1:${port}`;
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -279,7 +341,15 @@ async function createWindow() {
       if (/^https?:\/\//.test(url)) shell.openExternal(url);
     }
   });
-  win.loadURL(`${origin}/`);
+  // Ctrl+Shift+M で manifest のURLを設定し直す。
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'm') {
+      event.preventDefault();
+      loadSetup(win);
+    }
+  });
+  if (getManifestUrl()) loadSite(win);
+  else loadSetup(win);
 }
 
 app.whenReady().then(createWindow);

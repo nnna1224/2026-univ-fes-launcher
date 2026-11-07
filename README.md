@@ -80,7 +80,9 @@ summary: "簡単なゲーム紹介。"
 
 ### 仕組み
 
-1. 画面の表示時や「このゲームで遊ぶ」「取得」を押したときに、`launcher.config.json` の `manifestUrl` から manifest を取得します（5秒以内に取得できない場合は前回取得した manifest、それもなければ同梱の `manifest.json`）。
+0. 初回起動時に manifest のURLを入力します（「確認」で有効なゲームの件数、または取得できない理由を表示）。URLはexeにもリポジトリにも含めず、別途伝えてください。
+   URLと manifest のキャッシュは、Electron の `safeStorage`（Windows では DPAPI）でそのPCのユーザーだけが復号できる形に暗号化して保存します。あとから変更するときは `Ctrl+Shift+M` で設定画面を開きます。
+1. 画面の表示時や「このゲームで遊ぶ」「取得」を押したときに、設定したURLから manifest を取得します（5秒以内に取得できない場合は前回取得した manifest）。
    取得状況（未取得 / 更新あり / 取得済み）と、取得済み・最新のバージョンをトップページの一覧と詳細ページに表示します。
    ダウンロードは「すべて取得」「取得」「事前に取得」を押したとき、または未取得のゲームを遊ぶときにだけ行います。
 2. 同じバージョンが導入済みでなければ zip をダウンロードし、`sha256` を検証して `%LOCALAPPDATA%/jp.g2.festival-game-launcher/games/<slug>/<version>/` に展開します。古いバージョンは削除します。
@@ -103,7 +105,7 @@ summary: "簡単なゲーム紹介。"
 | `sha256` | - | zipのSHA-256。改ざんや破損の検出のため推奨 |
 | `args` | - | 起動引数の配列 |
 
-manifest 自体は、例えばGitHubリポジトリに置いて raw URL（`https://raw.githubusercontent.com/<owner>/<repo>/main/manifest.json`）を `manifestUrl` に設定します。Google Driveに置く場合は「リンクを知っている全員」に共有してください。
+manifest 自体は、例えばGoogle Driveに「リンクを知っている全員・閲覧者」で共有して置き、`https://drive.google.com/uc?export=download&id=<ID>` を入力します。更新は「版を管理」で行い、ファイルIDを変えないでください。編集者はリンクではなくアカウント単位で追加します。
 
 ### 開発・ビルド
 

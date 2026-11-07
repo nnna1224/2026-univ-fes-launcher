@@ -16,5 +16,5 @@
 ## Windowsランチャー（Electron）
 
 - `src/` 以下は https://github.com/nnna1224/2026-univ-fes-site のサイトと同じ画面を保つ。ランチャー固有の表示は詳細ページの「このゲームで遊ぶ」（`window.launcher` があるときだけ表示）に限る。
-- ランチャー本体は `electron/`。ゲームの配布情報は `launcher.config.json` の `manifestUrl` が指すリモートの manifest で管理し、ゲーム更新でランチャーの再配布が不要な状態を保つ。
+- ランチャー本体は `electron/`。ゲームの配布情報はリモートの manifest で管理し（URLは初回起動時に入力して暗号化保存。exeやリポジトリに含めない）、ゲーム更新でランチャーの再配布が不要な状態を保つ。
 - 手順は README.md の「Windowsランチャー」を参照。

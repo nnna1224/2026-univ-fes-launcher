@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>manifest の設定</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 64px auto; padding: 0 16px; color: #222; }
+    input { box-sizing: border-box; width: 100%; padding: 8px; font-size: 14px; }
+    .buttons { margin-top: 12px; display: flex; gap: 8px; }
+    button { padding: 8px 16px; font-size: 14px; }
+    #result { margin-top: 16px; padding: 12px; border-radius: 6px; display: none; }
+    #result.ok { display: block; background: #e6f4ea; color: #1e6b34; }
+    #result.ng { display: block; background: #fce8e6; color: #a50e0e; }
+    #result.busy { display: block; background: #f1f3f4; }
+  </style>
+</head>
+<body>
+  <h1>manifest の設定</h1>
+  <p>配布担当者から伝えられた manifest のURLを入力してください。URLは暗号化してこのPCに保存されます。</p>
+  <input id="url" type="url" placeholder="https://drive.google.com/uc?export=download&amp;id=..." autofocus />
+  <div class="buttons">
+    <button id="check">確認</button>
+    <button id="save" disabled>保存して開始</button>
+    <button id="back">戻る</button>
+  </div>
+  <div id="result" role="status"></div>
+  <script src="setup.js"></script>
+</body>
+</html>
