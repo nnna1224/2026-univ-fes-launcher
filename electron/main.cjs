@@ -13,6 +13,11 @@ const { pipeline } = require('node:stream/promises');
 const appRoot = path.join(__dirname, '..');
 const siteRoot = path.join(appRoot, 'dist');
 const config = JSON.parse(fs.readFileSync(path.join(appRoot, 'launcher.config.json'), 'utf8'));
+
+// ゲームやキャッシュを1フォルダにまとめ、このフォルダを消せば元に戻せるようにする。
+// 大きなゲームが移動プロファイルで同期されないよう Roaming ではなく Local に置き、
+// 開発時と配布版で場所が変わらないよう名前は appId で固定する。
+app.setPath('userData', path.join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'jp.g2.festival-game-launcher'));
 const gamesRoot = () => path.join(app.getPath('userData'), 'games');
 
 const mimeTypes = {
