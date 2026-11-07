@@ -43,10 +43,10 @@ function startSiteServer() {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
 }
 
-// manifest のURLはexeに含めず、初回起動時に入力してもらう。
-// URLと manifest のキャッシュ（zipのURLを含む）は、safeStorage（WindowsではDPAPI）で
+// manifest のURL（GitHubのプライベートリポジトリならトークンも）はexeに含めず、初回起動時に入力してもらう。
+// 設定と manifest のキャッシュ（zipのURLを含む）は、safeStorage（WindowsではDPAPI）で
 // このPCのユーザーだけが復号できる形に暗号化して保存する。
-const manifestUrlPath = () => path.join(app.getPath('userData'), 'manifest-url.bin');
+const settingsPath = () => path.join(app.getPath('userData'), 'settings.bin');
 const manifestCachePath = () => path.join(app.getPath('userData'), 'manifest.cache.bin');
 
 function readEncrypted(file) {
@@ -62,12 +62,43 @@ function writeEncrypted(file, text) {
   fs.writeFileSync(file, safeStorage.encryptString(text));
 }
 
-const getManifestUrl = () => readEncrypted(manifestUrlPath());
+/** 保存済みの設定 { url, token? }。未設定なら undefined。 */
+function getSettings() {
+  try {
+    return JSON.parse(readEncrypted(settingsPath()));
+  } catch {
+    return undefined;
+  }
+}
+
+// トークンはこのホストにだけ送る。リダイレクト先（Releasesの実体など）には fetch の仕様で送られない。
+const githubHosts = ['api.github.com', 'raw.githubusercontent.com'];
+const isGitHubUrl = (url) => githubHosts.includes(new URL(url).hostname);
+
+/**
+ * GitHub向けの追加ヘッダー。プライベートリポジトリでは raw.githubusercontent.com のファイルか、
+ * API（contents / releases/assets）のURLを manifest や `url` に書く。
+ */
+function githubHeaders(url, token) {
+  const { hostname, pathname } = new URL(url);
+  const headers = {};
+  if (hostname === 'api.github.com') {
+    headers.Accept = pathname.includes('/releases/assets/') ? 'application/octet-stream' : 'application/vnd.github.raw+json';
+    headers['X-GitHub-Api-Version'] = '2022-11-28';
+  }
+  if (token && githubHosts.includes(hostname)) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
 
 /** URLから manifest を取得し、形式を検証する。 */
-async function downloadManifest(url) {
-  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-  if (!res.ok) throw new Error(`取得できません (HTTP ${res.status})`);
+async function downloadManifest(url, token) {
+  const res = await fetch(url, { cache: 'no-store', headers: githubHeaders(url, token), signal: AbortSignal.timeout(5000) });
+  if (!res.ok) {
+    const hint = isGitHubUrl(url) && [401, 403, 404].includes(res.status)
+      ? '。プライベートリポジトリの場合は、トークンと、その対象リポジトリ・権限（Contents の読み取り）・有効期限を確認してください'
+      : '';
+    throw new Error(`取得できません (HTTP ${res.status})${hint}`);
+  }
   let manifest;
   try {
     manifest = JSON.parse(await res.text());
@@ -93,10 +124,10 @@ function loadManifest() {
 
 /** 最新の manifest を取得する。オフライン時は前回取得分を使う。 */
 async function fetchManifest() {
-  const url = getManifestUrl();
-  if (url) {
+  const settings = getSettings();
+  if (settings) {
     try {
-      const manifest = await downloadManifest(url);
+      const manifest = await downloadManifest(settings.url, settings.token);
       writeEncrypted(manifestCachePath(), JSON.stringify(manifest));
       return manifest;
     } catch (error) {
@@ -123,7 +154,7 @@ async function getGame(id, manifest) {
 
 /** Google Driveの大きいファイルは確認ページ(HTML)が返るので、フォームの内容から実ファイルのURLを組み立てる。 */
 async function fetchDownload(url) {
-  const res = await fetch(url, { redirect: 'follow' });
+  const res = await fetch(url, { redirect: 'follow', headers: githubHeaders(url, getSettings()?.token) });
   if (!res.ok) throw new Error(`ダウンロードに失敗しました (HTTP ${res.status})`);
   if (!(res.headers.get('content-type') ?? '').includes('text/html')) return res;
   const html = await res.text();
@@ -237,18 +268,28 @@ function openWebGame(game) {
   win.loadURL(game.url);
 }
 
-/** 設定画面で入力されたURLを検証し、有効なゲームの件数を返す。 */
-async function checkManifestUrl(url) {
-  if (!/^https:\/\//.test(url ?? '')) throw new Error('https:// で始まるURLを入力してください');
-  const manifest = await downloadManifest(url);
+/** 設定画面の入力を整える。トークンはGitHubのURLのときだけ使う。 */
+function normalizeSettings(url, token) {
+  try {
+    if (new URL(url).protocol !== 'https:') throw new Error();
+  } catch {
+    throw new Error('https:// で始まるURLを入力してください');
+  }
+  return { url, token: isGitHubUrl(url) && token ? token : undefined };
+}
+
+/** 設定画面で入力された内容を検証し、有効なゲームの件数を返す。 */
+async function checkSettings({ url, token }) {
+  const manifest = await downloadManifest(url, token);
   return Object.values(manifest.games).filter(validGame).length;
 }
 
-ipcMain.handle('launcher:check-manifest', (_event, url) => checkManifestUrl(url));
+ipcMain.handle('launcher:check-manifest', (_event, url, token) => checkSettings(normalizeSettings(url, token)));
 
-ipcMain.handle('launcher:save-manifest', async (event, url) => {
-  await checkManifestUrl(url);
-  writeEncrypted(manifestUrlPath(), url);
+ipcMain.handle('launcher:save-manifest', async (event, url, token) => {
+  const settings = normalizeSettings(url, token);
+  await checkSettings(settings);
+  writeEncrypted(settingsPath(), JSON.stringify(settings));
   // 別の manifest の前回取得分を使わないよう、キャッシュも消す。
   fs.rmSync(manifestCachePath(), { force: true });
   manifestRequest = undefined;
@@ -257,7 +298,7 @@ ipcMain.handle('launcher:save-manifest', async (event, url) => {
 
 /** 設定済みならサイトに戻る。未設定なら false。 */
 ipcMain.handle('launcher:close-setup', async (event) => {
-  if (!getManifestUrl()) return false;
+  if (!getSettings()) return false;
   await loadSite(BrowserWindow.fromWebContents(event.sender));
   return true;
 });
@@ -348,7 +389,7 @@ async function createWindow() {
       loadSetup(win);
     }
   });
-  if (getManifestUrl()) loadSite(win);
+  if (getSettings()) loadSite(win);
   else loadSetup(win);
 }
 

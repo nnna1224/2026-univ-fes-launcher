@@ -9,6 +9,7 @@
     input { box-sizing: border-box; width: 100%; padding: 8px; font-size: 14px; }
     .buttons { margin-top: 12px; display: flex; gap: 8px; }
     button { padding: 8px 16px; font-size: 14px; }
+    #token-field p { margin: 16px 0 8px; }
     #result { margin-top: 16px; padding: 12px; border-radius: 6px; display: none; }
     #result.ok { display: block; background: #e6f4ea; color: #1e6b34; }
     #result.ng { display: block; background: #fce8e6; color: #a50e0e; }
@@ -17,8 +18,12 @@
 </head>
 <body>
   <h1>manifest の設定</h1>
-  <p>配布担当者から伝えられた manifest のURLを入力してください。URLは暗号化してこのPCに保存されます。</p>
+  <p>配布担当者から伝えられた manifest のURLを入力してください。URL（とトークン）は暗号化してこのPCに保存されます。</p>
   <input id="url" type="url" placeholder="https://drive.google.com/uc?export=download&amp;id=..." autofocus />
+  <div id="token-field" hidden>
+    <p>GitHubのプライベートリポジトリの場合は、配布担当者から伝えられたトークンも入力してください（公開リポジトリなら空欄のまま）。</p>
+    <input id="token" type="password" placeholder="github_pat_..." autocomplete="off" />
+  </div>
   <div class="buttons">
     <button id="check">確認</button>
     <button id="save" disabled>保存して開始</button>

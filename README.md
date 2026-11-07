@@ -105,6 +105,12 @@ summary: "簡単なゲーム紹介。"
 | `sha256` | - | zipのSHA-256。改ざんや破損の検出のため推奨 |
 | `args` | - | 起動引数の配列 |
 
+GitHubのプライベートリポジトリに置く場合は、URLが `api.github.com` か `raw.githubusercontent.com` のときだけ設定画面にトークン欄が出ます。トークンはこの2つのホストにだけ送られ、URLと一緒に暗号化して保存されます。
+
+- トークン：Fine-grained personal access token。対象は配布専用のリポジトリ1つ、権限は Contents の読み取りのみ。有効期限は学祭期間をカバーする長さにする
+- manifest のURL：`https://raw.githubusercontent.com/<owner>/<repo>/main/manifest.json`
+- zip（`url`）：Releases の添付ファイルを API のURL `https://api.github.com/repos/<owner>/<repo>/releases/assets/<アセットID>` で書く（`github.com/.../releases/download/...` の形はプライベートでは取得できない）。アセットIDは `gh api repos/<owner>/<repo>/releases/tags/<タグ>` の `assets[].id` で確認できる
+
 manifest 自体は、例えばGoogle Driveに「リンクを知っている全員・閲覧者」で共有して置き、`https://drive.google.com/uc?export=download&id=<ID>` を入力します。更新は「版を管理」で行い、ファイルIDを変えないでください。編集者はリンクではなくアカウント単位で追加します。
 
 ### 開発・ビルド
