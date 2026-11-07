@@ -26,7 +26,7 @@ const { title = site.name, description = site.intro } = Astro.props;
     <a class="skip-link" href="#main">本文へ移動</a>
     <header class="top-app-bar">
       <div class="container">
-        <a class="top-app-bar__title" href={withBase('/')} aria-label={site.name}><img src={withBase('/icon.png')} alt="" width="40" height="40" />SHOWCASE</a>
+        <a class="top-app-bar__title" href={withBase('/')} aria-label={site.name}><img src={withBase('/icon.png')} alt="" width="40" height="40" />お品書き</a>
         <nav aria-label="メインナビゲーション">
           {site.links[0] && <a class="btn btn--text" href={site.links[0].url} target="_blank" rel="noopener noreferrer">{site.links[0].label}</a>}
         </nav>
