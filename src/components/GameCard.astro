@@ -1,0 +1,22 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { imageUrl, withBase } from '../utils/paths';
+
+interface Props {
+  game: CollectionEntry<'games'>;
+}
+
+const { game } = Astro.props;
+const { title, summary, genre, cover, accent } = game.data;
+---
+
+<a class={`card tone-${accent}`} href={withBase(`/games/${game.id}/`)}>
+  <div class="card__media">
+    {cover ? <img src={imageUrl(cover)} alt="" loading="lazy" /> : <span aria-hidden="true">{title}</span>}
+  </div>
+  <div class="card__body">
+    <h3>{title}</h3>
+    {genre && <p class="card__meta">{genre}</p>}
+    {summary && <p>{summary}</p>}
+  </div>
+</a>

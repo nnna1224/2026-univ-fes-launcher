@@ -1,0 +1,127 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { site } from '../../config/site';
+import { imageUrl, withBase } from '../../utils/paths';
+import { youtubeUrl } from '../../utils/youtube';
+
+export async function getStaticPaths() {
+  const games = await getCollection('games');
+  return games.map((game) => ({ params: { id: game.id }, props: { game } }));
+}
+
+const { game } = Astro.props as { game: CollectionEntry<'games'> };
+const { Content } = await render(game);
+const { title, summary, genre, cover, video, screenshots, accent, event, development, links } = game.data;
+const youtubeId = video?.match(youtubeUrl)?.[1];
+const hasEvent = !!event && !!(event.playTimeMinutes || event.players || event.controls.length || event.notes);
+const hasDevelopment = !!development && !!(development.engine || development.languages.length || development.period || development.team || development.notes);
+---
+<BaseLayout title={`${title} | ${site.name}`} description={summary}>
+  <div class="container section">
+    <a href={withBase('/#games')} class="btn btn--text">← ゲーム一覧</a>
+    <div class={`detail-media tone-${accent}`}>
+      {youtubeId ? (
+        <iframe src={`https://www.youtube-nocookie.com/embed/${youtubeId}`} title={`${title}の動画`} allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+      ) : cover ? <img src={imageUrl(cover)} alt={`${title}のキービジュアル`} /> : <span aria-hidden="true">{title}</span>}
+    </div>
+    <div class="detail-layout">
+      <div>
+        {genre && <span class="chip">{genre}</span>}
+        <h1 class="display" style="margin-top: 16px">{title}</h1>
+        {summary && <p class="body-large">{summary}</p>}
+        <div class="prose"><Content /></div>
+        {screenshots.length > 0 && (
+          <section aria-labelledby="screenshots-heading">
+            <h2 id="screenshots-heading" class="headline" style="margin-top: 24px">スクリーンショット</h2>
+            <div class="screenshots">
+              {screenshots.map((screenshot, i) => <img src={imageUrl(screenshot)} alt={`${title}のスクリーンショット ${i + 1}`} loading="lazy" />)}
+            </div>
+          </section>
+        )}
+      </div>
+      <aside>
+        <section class="launcher-play" data-game-id={game.id} aria-labelledby="play-heading" hidden>
+          <h2 id="play-heading">このゲームで遊ぶ</h2>
+          <p class="launcher-play__version"></p>
+          <div class="launcher-play__actions">
+            <button type="button" class="btn btn--filled" data-action="play">このゲームで遊ぶ</button>
+            <button type="button" class="btn btn--tonal" data-action="download" hidden>事前に取得</button>
+          </div>
+          <p class="launcher-play__status" role="status"></p>
+        </section>
+        {hasEvent && (
+          <section aria-labelledby="event-heading">
+            <h2 id="event-heading">展示・試遊情報</h2>
+            <dl class="list">
+              {event?.playTimeMinutes && <div><dt>プレイ時間の目安</dt><dd>約{event.playTimeMinutes}分</dd></div>}
+              {event?.players && <div><dt>プレイ人数</dt><dd>{event.players}</dd></div>}
+              {event && event.controls.length > 0 && <div><dt>操作方法</dt><dd><ul>{event.controls.map((control) => <li>{control}</li>)}</ul></dd></div>}
+              {event?.notes && <div><dt>補足</dt><dd class="preserve-newlines">{event.notes}</dd></div>}
+            </dl>
+          </section>
+        )}
+        {hasDevelopment && (
+          <section aria-labelledby="development-heading">
+            <h2 id="development-heading">開発情報</h2>
+            <dl class="list">
+              {development?.engine && <div><dt>ゲームエンジン</dt><dd>{development.engine}</dd></div>}
+              {development && development.languages.length > 0 && <div><dt>実装言語</dt><dd>{development.languages.join(' / ')}</dd></div>}
+              {development?.period && <div><dt>開発期間</dt><dd>{development.period}</dd></div>}
+              {development?.team && <div><dt>開発人数</dt><dd>{development.team}</dd></div>}
+              {development?.notes && <div><dt>補足</dt><dd class="preserve-newlines">{development.notes}</dd></div>}
+            </dl>
+          </section>
+        )}
+        {links.length > 0 && (
+          <section aria-labelledby="links-heading">
+            <h2 id="links-heading">関連リンク</h2>
+            <div class="link-list">
+              {links.map((link) => <a class="btn btn--tonal" href={link.url} target="_blank" rel="noopener noreferrer">{link.label}</a>)}
+            </div>
+          </section>
+        )}
+      </aside>
+    </div>
+  </div>
+  <script>
+    import { launcher, statusText, needsDownload, errorMessage } from '../../utils/launcher';
+
+    // ランチャー（Electron）内で開いたときだけ表示する。ブラウザでは何もしない。
+    const section = document.querySelector<HTMLElement>('.launcher-play');
+    if (section && launcher) {
+      const api = launcher;
+      const id = section.dataset.gameId!;
+      const play = section.querySelector<HTMLButtonElement>('[data-action="play"]')!;
+      const download = section.querySelector<HTMLButtonElement>('[data-action="download"]')!;
+      const version = section.querySelector('.launcher-play__version')!;
+      const status = section.querySelector('.launcher-play__status')!;
+
+      const refresh = async () => {
+        const current = await api.status(id);
+        section.hidden = current.state === 'none';
+        version.textContent = statusText(current);
+        download.hidden = !needsDownload(current);
+      };
+      const run = async (button: HTMLButtonElement, action: () => Promise<void>) => {
+        button.disabled = true;
+        try {
+          await action();
+        } catch (error) {
+          status.textContent = `失敗しました: ${errorMessage(error)}`;
+        } finally {
+          button.disabled = false;
+          await refresh();
+        }
+      };
+
+      refresh();
+      api.onProgress((gameId, message) => {
+        if (gameId === id) status.textContent = message;
+      });
+      play.addEventListener('click', () => run(play, () => api.play(id)));
+      download.addEventListener('click', () => run(download, () => api.download(id)));
+    }
+  </script>
+</BaseLayout>

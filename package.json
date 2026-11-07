@@ -1,0 +1,52 @@
+{
+  "name": "festival-game-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "electron:install": "node node_modules/electron/install.js",
+    "launcher": "astro build && electron .",
+    "dist:win": "astro build && electron-builder --win"
+  },
+  "dependencies": {
+    "astro": "7.4.5"
+  },
+  "engines": {
+    "node": ">=26.13.0"
+  },
+  "description": "学祭ゲーム紹介サイトをそのまま表示するWindows用ゲームランチャー",
+  "author": "G^2",
+  "main": "electron/main.cjs",
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "jp.g2.festival-game-launcher",
+    "productName": "G2 Game Launcher",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "launcher.config.json",
+      "manifest.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "dist-electron"
+    }
+  }
+}

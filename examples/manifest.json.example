@@ -1,0 +1,20 @@
+{
+  "games": {
+    "musica": {
+      "version": "1.0.0",
+      "url": "https://github.com/<owner>/<repo>/releases/download/musica-v1.0.0/musica.zip",
+      "sha256": "zipファイルのSHA-256（任意だが推奨）",
+      "exe": "musica/musica.exe",
+      "args": []
+    },
+    "tetjong": {
+      "version": "1.0.0",
+      "url": "https://drive.google.com/uc?export=download&id=<ファイルID>",
+      "exe": "Tetjong.exe"
+    },
+    "hana-uranai": {
+      "type": "web",
+      "url": "https://unityroom.com/games/<ゲームID>"
+    }
+  }
+}

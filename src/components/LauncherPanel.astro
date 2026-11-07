@@ -1,0 +1,90 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  games: CollectionEntry<'games'>[];
+}
+
+const { games } = Astro.props;
+---
+
+<!-- ランチャー（Electron）内で開いたときだけ表示する事前取得パネル。 -->
+<section class="launcher-panel section container" aria-labelledby="launcher-heading" hidden>
+  <div class="launcher-panel__header">
+    <h2 id="launcher-heading" class="headline">ゲームの事前取得</h2>
+    <button type="button" class="btn btn--filled" data-action="download-all">すべて取得</button>
+  </div>
+  <p class="launcher-panel__status" role="status"></p>
+  <ul class="list launcher-panel__list">
+    {games.map((game) => (
+      <li data-game-id={game.id} hidden>
+        <span class="launcher-panel__title">{game.data.title}</span>
+        <span class="launcher-panel__version"></span>
+        <button type="button" class="btn btn--tonal" data-action="download" hidden>取得</button>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<script>
+  import { launcher, statusText, needsDownload, errorMessage } from '../utils/launcher';
+
+  const panel = document.querySelector<HTMLElement>('.launcher-panel');
+  if (panel && launcher) {
+    const api = launcher;
+    const status = panel.querySelector('.launcher-panel__status')!;
+    const all = panel.querySelector<HTMLButtonElement>('[data-action="download-all"]')!;
+    const rows = [...panel.querySelectorAll<HTMLElement>('li[data-game-id]')];
+
+    const refresh = async () => {
+      let pending = 0;
+      await Promise.all(rows.map(async (row) => {
+        const current = await api.status(row.dataset.gameId!);
+        row.hidden = current.state === 'none';
+        row.querySelector('.launcher-panel__version')!.textContent = statusText(current);
+        row.querySelector<HTMLElement>('[data-action="download"]')!.hidden = !needsDownload(current);
+        if (needsDownload(current)) pending++;
+      }));
+      panel.hidden = rows.every((row) => row.hidden);
+      all.disabled = pending === 0;
+    };
+
+    api.onProgress((id, message) => {
+      if (id === '*') {
+        if (message) status.textContent = message;
+        return;
+      }
+      const version = rows.find((row) => row.dataset.gameId === id)?.querySelector('.launcher-panel__version');
+      if (version && message) version.textContent = message;
+    });
+
+    all.addEventListener('click', async () => {
+      all.disabled = true;
+      try {
+        const { total, failed } = await api.downloadAll();
+        status.textContent = failed.length
+          ? `${total}件中${failed.length}件の取得に失敗しました: ${failed.join(' / ')}`
+          : `${total}件を取得しました。`;
+      } catch (error) {
+        status.textContent = `失敗しました: ${errorMessage(error)}`;
+      }
+      await refresh();
+    });
+
+    for (const row of rows) {
+      const button = row.querySelector<HTMLButtonElement>('[data-action="download"]')!;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          await api.download(row.dataset.gameId!);
+        } catch (error) {
+          status.textContent = `${row.querySelector('.launcher-panel__title')!.textContent}: ${errorMessage(error)}`;
+        }
+        button.disabled = false;
+        await refresh();
+      });
+    }
+
+    refresh();
+  }
+</script>

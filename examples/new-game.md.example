@@ -1,0 +1,52 @@
+---
+# 必須項目は title と summary の2つだけ。
+title: "新しいゲーム名"
+summary: "このゲームがどんな作品なのか、1〜2文で紹介します。"
+
+# 以下は任意です。不要な項目は行ごと削除できます。
+genre: "アクション"
+accent: "cyan" # cyan / pink / orange / violet / lime
+order: 6
+
+# 画像ファイルは public/images/new-game/ に配置。
+# 画像を用意していなければ、cover と screenshots は省略可能。
+cover: "/images/new-game/cover.webp"
+screenshots:
+  - "/images/new-game/screen-01.webp"
+  - "/images/new-game/screen-02.webp"
+
+# 学祭の展示情報。未定の項目は削除してOK。
+event:
+  playTimeMinutes: 10
+  players: "1人"
+  controls:
+    - "矢印キー：移動"
+    - "Space：決定"
+  notes: "混雑時は交代制でご案内します。"
+
+# 開発情報。不明な項目は削除してOK。
+development:
+  engine: "Unity"
+  languages:
+    - "C#"
+  period: "2026年4月〜10月"
+  team: "3人"
+  notes: "BGMはフリー素材を使用。"
+
+links:
+  - label: "公式サイト"
+    url: "https://example.com/"
+---
+
+## ゲームについて
+
+ここに作品の詳しい説明を書きます。
+
+## 特徴
+
+- 特徴その1
+- 特徴その2
+
+## 遊び方
+
+ここに基本ルールや楽しみ方を書きます。
