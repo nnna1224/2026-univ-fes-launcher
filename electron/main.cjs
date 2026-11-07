@@ -130,8 +130,10 @@ async function install(id, game, progress) {
 
     progress('展開中…');
     // Windows 10以降に標準搭載の tar.exe (bsdtar) はzipを展開できる。
+    // PATH 上の GNU tar（Git Bash 等）はzipを扱えないため、System32 の tar.exe を明示する。
+    const tar = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
     await new Promise((resolve, reject) => {
-      execFile('tar', ['-xf', zipPath, '-C', dir], (error) => (error ? reject(new Error(`展開に失敗しました: ${error.message}`)) : resolve()));
+      execFile(tar,['-xf', zipPath, '-C', dir], (error) => (error ? reject(new Error(`展開に失敗しました: ${error.message}`)) : resolve()));
     });
     await fsp.writeFile(path.join(dir, '.installed'), new Date().toISOString());
   } catch (error) {
