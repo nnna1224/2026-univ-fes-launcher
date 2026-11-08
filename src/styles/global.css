@@ -118,3 +118,4 @@ h1, h2, h3, p { margin-top: 0; }
 .launcher-panel__title { flex: 1; }
 .launcher-panel__version { font-size: 14px; color: var(--md-on-surface-variant); }
 .launcher-play [hidden], .launcher-panel [hidden] { display: none; }
+[data-launcher-only][hidden] { display: none; }

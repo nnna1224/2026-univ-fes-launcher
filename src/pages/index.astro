@@ -2,7 +2,6 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import GameCard from '../components/GameCard.astro';
 import { site } from '../config/site';
-import LauncherPanel from '../components/LauncherPanel.astro';
 import { publishedGames } from '../utils/games';
 
 const games = await publishedGames();
@@ -11,8 +10,6 @@ const games = await publishedGames();
   <section class="hero container">
     <h1 class="hero__title">{site.festivalName}</h1>
   </section>
-
-  <LauncherPanel games={games} />
 
   <section id="games" class="section container" aria-labelledby="games-heading">
     <h2 id="games-heading" class="headline">出展ゲーム</h2>

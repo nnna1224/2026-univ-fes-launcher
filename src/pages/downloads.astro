@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LauncherPanel from '../components/LauncherPanel.astro';
+import { site } from '../config/site';
+import { publishedGames } from '../utils/games';
+
+// ランチャー（Electron）専用の事前取得ページ。ヘッダーのリンクはランチャー内でだけ表示する。
+const games = await publishedGames();
+---
+<BaseLayout title={`ゲームの事前取得 | ${site.name}`}>
+  <LauncherPanel games={games} />
+</BaseLayout>

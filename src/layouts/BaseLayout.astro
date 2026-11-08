@@ -28,10 +28,15 @@ const { title = site.name, description = site.intro } = Astro.props;
       <div class="container">
         <a class="top-app-bar__title" href={withBase('/')} aria-label={site.name}><img src={withBase('/icon.png')} alt="" width="40" height="40" />お品書き</a>
         <nav aria-label="メインナビゲーション">
+          <a class="btn btn--text" href={withBase('/downloads/')} data-launcher-only hidden>事前取得</a>
           {site.links[0] && <a class="btn btn--text" href={site.links[0].url} target="_blank" rel="noopener noreferrer">{site.links[0].label}</a>}
         </nav>
       </div>
     </header>
+    <script>
+      // 事前取得ページへのリンクはランチャー（Electron）内でだけ表示する。
+      if ('launcher' in window) document.querySelectorAll<HTMLElement>('[data-launcher-only]').forEach((el) => (el.hidden = false));
+    </script>
     <main id="main"><slot /></main>
     <footer class="site-footer">
       <div class="container">© {new Date().getFullYear()} {site.groupName}</div>
