@@ -1,11 +1,13 @@
 ---
 title: "NationsWar"
-summary: "不明"
-genre: "不明"
+summary: "1880年ごろの陸軍を題材にした、1対1の攻城ストラテジー"
+genre: "ストラテジー"
 order: 19
 event:
-  players: "不明"
-  notes: "不明"
+  players: "2人"
+  controls:
+    - "マウスのみ"
+  notes: "同じネットワークにつないだ2台のPCで対戦します。"
 development:
   engine: "Electron"
   languages:
@@ -16,4 +18,5 @@ development:
 
 ## ゲームについて
 
-不明
+1880年ごろの陸軍を題材にした、1対1の攻城ストラテジーです。  
+片方が「ルームを作る」、もう片方が「ルームに参加する」でつなぎ、デッキを選んで城壁を置くと試合が始まります。
