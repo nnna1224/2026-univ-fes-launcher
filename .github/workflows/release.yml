@@ -1,0 +1,51 @@
+# v から始まるタグ（例: v0.1.0）を push すると、Windows 用のランチャーをビルドして Release に添付する。
+name: Release launcher
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: latest
+          cache: npm
+
+      - name: タグと package.json のバージョンが一致するか確認
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::タグ $GITHUB_REF_NAME と package.json の version ($version) が一致しません"
+            exit 1
+          fi
+
+      - name: 依存関係をインストール
+        run: |
+          npm ci --ignore-scripts
+          npm run electron:install
+
+      - name: ビルド
+        # Release への添付は次のステップで行うため、electron-builder 自身の公開は無効にする。
+        run: npm run dist:win -- --publish never
+
+      - name: Release を作成してインストーラーを添付
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist-electron/G2 Game Launcher Setup ${GITHUB_REF_NAME#v}.exe" \
+            "dist-electron/G2 Game Launcher ${GITHUB_REF_NAME#v}.exe" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

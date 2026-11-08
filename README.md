@@ -125,6 +125,15 @@ npm run launcher
 npm run dist:win
 ```
 
+### リリース（GitHub Actions）
+
+`package.json` の `version` を上げてコミットし、同じバージョンのタグを push すると、`.github/workflows/release.yml` が Windows 上（Node は最新版）でビルドし、インストーラーとポータブル版を Release に添付します。タグと `version` が一致しない場合は失敗します。
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
 展開には Windows 10 以降に標準搭載の `tar.exe` を使います。
 Windows 以外で `dist:win` を実行する場合、electron-builder が Wine などを必要とすることがあります。Windows 上でのビルドを推奨します。
 
